@@ -102,6 +102,33 @@ def _select_speaker(roles: List[str], round_index: int) -> str:
     return roles[(round_index - 1) % len(roles)]
 
 
+def _select_parallel_speakers(
+    roles: List[str],
+    round_index: int,
+    config: Dict[str, Any],
+) -> tuple[List[str], str]:
+    # Select parallel speakers based on config whitelist/limit.
+    base_roles = [role for role in roles if str(role).lower() != "recorder"]
+    if not base_roles:
+        base_roles = list(roles)
+
+    whitelist = config.get("parallel_roles")
+    if isinstance(whitelist, list) and whitelist:
+        ordered = [role for role in whitelist if role in base_roles]
+        base_roles = ordered if ordered else base_roles
+
+    limit = int(config.get("parallel_role_limit", 0) or 0)
+    if limit > 0 and len(base_roles) > limit:
+        start = ((round_index - 1) * limit) % len(base_roles)
+        base_roles = [base_roles[(start + idx) % len(base_roles)] for idx in range(limit)]
+        return base_roles, "parallel_subset"
+
+    if isinstance(whitelist, list) and whitelist:
+        return base_roles, "parallel_whitelist"
+
+    return base_roles, "parallel_all"
+
+
 def _event_code_for_event(event_type: str, payload: Dict[str, Any], actor: str) -> str:
     # Map internal event types to PRD-friendly event codes.
     if event_type == "agent_message":
@@ -397,10 +424,14 @@ async def run_meeting(
 
     for round_index in range(start_round, max_rounds + 1):
         round_outputs: Dict[str, Dict[str, Any]] = {}
-        speakers = [role for role in roles if str(role).lower() != "recorder"]
-        if not speakers:
-            speakers = [_select_speaker(roles, round_index)]
-        if not parallel_mode:
+        speakers: List[str]
+        strategy = "round_robin"
+        if parallel_mode:
+            speakers, strategy = _select_parallel_speakers(roles, round_index, config)
+            if not speakers:
+                speakers = [_select_speaker(roles, round_index)]
+                strategy = "round_robin"
+        else:
             speakers = [_select_speaker(roles, round_index)]
         last_round = round_index
 
@@ -422,7 +453,7 @@ async def run_meeting(
                     "speaker": speakers[0] if len(speakers) == 1 else None,
                     "speakers": speakers,
                     "round": round_index,
-                    "strategy": "parallel_all" if parallel_mode else "round_robin",
+                    "strategy": strategy,
                 },
             )
         )

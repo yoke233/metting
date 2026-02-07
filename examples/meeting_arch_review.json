@@ -22,5 +22,11 @@
   },
   "output_schema": "v1",
   "pause_on_round": null,
-  "parallel_mode": true
+  "parallel_mode": true,
+  "parallel_roles": [
+    "Chief Architect",
+    "Infra Architect",
+    "Security Architect"
+  ],
+  "parallel_role_limit": 2
 }
