@@ -116,6 +116,9 @@ def parse_recorder_output(text: str) -> Dict[str, Dict[str, Any]]:
     risks = _get_case_insensitive(payload, "RISKS")
     if not isinstance(adr, dict):
         raise ValidationError("ADR must be object")
+    # Accept TASKS as list and normalize to object shape for compatibility.
+    if isinstance(tasks, list):
+        tasks = {"tasks": tasks}
     if not isinstance(tasks, dict):
         raise ValidationError("TASKS must be object")
     if not isinstance(risks, dict):

@@ -6,7 +6,9 @@ recorder_output_prompt = """
 1) 只输出严格 JSON，不要包裹在代码块里，不要解释说明。
 2) JSON 顶层必须包含 ADR、TASKS、RISKS 三个键。
 3) ADR 必填键：context、decision、alternatives_considered、consequences、risks_summary、open_questions、next_steps。
-4) TASKS.tasks 为数组，每项必填键：task_id、title、owner_role、priority、estimate、dependencies。
+4) TASKS 必须是对象，且仅包含键 tasks；TASKS.tasks 为数组，每项必填键：task_id、title、owner_role、priority、estimate、dependencies。
+   注意：不要把 TASKS 写成数组。正确示例：
+   {"TASKS":{"tasks":[{"task_id":"T1","title":"示例","owner_role":"负责人","priority":"高","estimate":"1天","dependencies":[]}]}}
 5) RISKS.risks 为数组，每项必填键：risk、impact、probability、mitigation、verification、owner_role。
 6) 所有文本必须使用中文。
 """

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -78,6 +80,12 @@ def _user_message_event(run_id: str, content: str) -> Dict[str, Any]:
         "actor": "user",
         "payload": payload,
     }
+
+
+def _format_sse(event: Dict[str, Any]) -> str:
+    # Format SSE payload for event streaming.
+    data = json.dumps(event, ensure_ascii=False)
+    return f"id: {event.get('id', 0)}\ndata: {data}\n\n"
 
 
 # create_app: FastAPI factory for the meeting service.
@@ -197,13 +205,61 @@ def create_app(db_path: Path | str = "meeting.db") -> FastAPI:
         return {"run": run, "artifacts": artifacts}
 
     @app.get("/meetings/{meeting_id}/runs/{run_id}/events")
-    def get_events(meeting_id: str, run_id: str):
+    def get_events(meeting_id: str, run_id: str, include_tokens: bool = True):
         # Return ordered event stream for replay.
         run = app.state.storage.get_run(run_id)
         if not run:
             raise HTTPException(status_code=404, detail="run not found")
         events = app.state.storage.list_events(run_id)
+        if not include_tokens:
+            events = [event for event in events if event.get("type") != "token"]
         return {"events": events}
+
+    @app.get("/meetings/{meeting_id}/runs/{run_id}/events/stream")
+    async def stream_events(
+        meeting_id: str,
+        run_id: str,
+        after_id: Optional[int] = None,
+        tail: int = 200,
+        poll_ms: int = 1000,
+    ):
+        # Stream events using Server-Sent Events (SSE).
+        run = app.state.storage.get_run(run_id)
+        if not run or run.get("meeting_id") != meeting_id:
+            raise HTTPException(status_code=404, detail="run not found")
+
+        safe_tail = max(0, min(int(tail or 0), 500))
+        safe_poll_ms = max(200, min(int(poll_ms or 1000), 5000))
+
+        async def event_generator():
+            # Yield recent events first, then poll for new ones.
+            last_id = int(after_id or 0)
+            if after_id is None and safe_tail:
+                for event in app.state.storage.list_recent_event_rows(run_id, limit=safe_tail):
+                    last_id = event["id"]
+                    yield _format_sse(event)
+
+            idle_cycles = 0
+            keepalive_every = max(1, int(15000 / safe_poll_ms))
+
+            while True:
+                events = app.state.storage.list_event_rows_after(run_id, last_id, limit=200)
+                if events:
+                    idle_cycles = 0
+                    for event in events:
+                        last_id = event["id"]
+                        yield _format_sse(event)
+                else:
+                    idle_cycles += 1
+                    if idle_cycles % keepalive_every == 0:
+                        yield ": keep-alive\n\n"
+                await asyncio.sleep(safe_poll_ms / 1000)
+
+        return StreamingResponse(
+            event_generator(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+        )
 
     @app.get("/meetings/{meeting_id}/runs/{run_id}/summaries")
     def get_summaries(meeting_id: str, run_id: str):

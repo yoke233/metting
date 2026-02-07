@@ -143,6 +143,57 @@ class StorageRepo:
             )
         return events
 
+    # list_event_rows_after: fetch events after a given row id (for streaming).
+    def list_event_rows_after(
+        self,
+        run_id: str,
+        after_id: int,
+        limit: int = 200,
+    ) -> List[Dict[str, Any]]:
+        # Incremental event loading for SSE streams.
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, run_id, ts_ms, type, actor, payload_json "
+                "FROM events WHERE run_id = ? AND id > ? ORDER BY id LIMIT ?",
+                (run_id, after_id, limit),
+            ).fetchall()
+        events: List[Dict[str, Any]] = []
+        for row in rows:
+            events.append(
+                {
+                    "id": row["id"],
+                    "run_id": row["run_id"],
+                    "ts_ms": row["ts_ms"],
+                    "type": row["type"],
+                    "actor": row["actor"],
+                    "payload": json.loads(row["payload_json"]),
+                }
+            )
+        return events
+
+    # list_recent_event_rows: fetch latest events with ids for bootstrapping streams.
+    def list_recent_event_rows(self, run_id: str, limit: int = 200) -> List[Dict[str, Any]]:
+        # Load the most recent events for an SSE tail.
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT id, run_id, ts_ms, type, actor, payload_json "
+                "FROM events WHERE run_id = ? ORDER BY id DESC LIMIT ?",
+                (run_id, limit),
+            ).fetchall()
+        events: List[Dict[str, Any]] = []
+        for row in reversed(rows):
+            events.append(
+                {
+                    "id": row["id"],
+                    "run_id": row["run_id"],
+                    "ts_ms": row["ts_ms"],
+                    "type": row["type"],
+                    "actor": row["actor"],
+                    "payload": json.loads(row["payload_json"]),
+                }
+            )
+        return events
+
     # save_artifact: persist a structured artifact.
     def save_artifact(self, run_id: str, artifact_type: str, version: str, content: Dict[str, Any]) -> None:
         # Persist a structured artifact.
