@@ -1,0 +1,1008 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Meeting System MVP</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f7f4ee;
+      --bg-2: #eef6f4;
+      --ink: #111827;
+      --muted: #475569;
+      --accent: #0f766e;
+      --accent-2: #f59e0b;
+      --card: #ffffff;
+      --line: #e5e7eb;
+      --shadow: 0 10px 30px rgba(17, 24, 39, 0.08);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: "Source Sans 3", sans-serif;
+      color: var(--ink);
+      background: radial-gradient(1200px 600px at 10% -10%, #e6f4f1, transparent 60%),
+                  radial-gradient(900px 500px at 100% 0%, #fff2d6, transparent 55%),
+                  linear-gradient(160deg, var(--bg), var(--bg-2));
+      line-height: 1.6;
+    }
+
+    .grid {
+      background-image: linear-gradient(var(--line) 1px, transparent 1px),
+                        linear-gradient(90deg, var(--line) 1px, transparent 1px);
+      background-size: 28px 28px;
+      background-position: -1px -1px;
+    }
+
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 20px 80px; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 0 32px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: "Space Grotesk", sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .badge {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(15, 118, 110, 0.12);
+      color: var(--accent);
+      border: 1px solid rgba(15, 118, 110, 0.25);
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 28px;
+      align-items: center;
+    }
+
+    h1 {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: clamp(30px, 4vw, 50px);
+      line-height: 1.1;
+      margin: 0 0 16px;
+    }
+
+    .lead {
+      font-size: 18px;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .cta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 200ms ease, box-shadow 200ms ease, background 200ms ease;
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(15, 118, 110, 0.25);
+    }
+
+    .btn.secondary {
+      background: #fff;
+      color: var(--ink);
+      border-color: var(--line);
+    }
+
+    .btn:focus-visible {
+      outline: 3px solid rgba(15, 118, 110, 0.35);
+      outline-offset: 2px;
+    }
+
+    .btn:hover { transform: translateY(-2px); }
+
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 22px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .stat {
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat strong { display: block; font-size: 18px; }
+
+    .section {
+      margin-top: 48px;
+    }
+
+    .section h2 {
+      font-family: "Space Grotesk", sans-serif;
+      font-size: 26px;
+      margin: 0 0 14px;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      min-height: 140px;
+      transition: box-shadow 200ms ease, transform 200ms ease;
+    }
+
+    .card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .flow .step {
+      border-left: 4px solid var(--accent);
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid var(--line);
+    }
+
+    .event-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 16px;
+    }
+
+    .event-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .event-item {
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      cursor: pointer;
+      transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
+    }
+
+    .event-item:hover { transform: translateY(-1px); }
+
+    .event-item.active {
+      border-color: var(--accent);
+      box-shadow: 0 8px 16px rgba(15, 118, 110, 0.15);
+    }
+
+    .event-detail .log {
+      min-height: 240px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .event-shell {
+      background: #f1f5f9;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      max-width: 980px;
+      margin: 0 auto;
+      box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    .log {
+      font-family: "Space Grotesk", sans-serif;
+      background: #0b1220;
+      color: #e2e8f0;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 13px;
+      line-height: 1.5;
+      overflow-x: auto;
+    }
+
+    .log .mermaid-frame {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px;
+      max-height: 320px;
+      overflow: auto;
+      cursor: zoom-in;
+    }
+
+    .log .mermaid-frame .mermaid {
+      color: #111827;
+    }
+
+    .mermaid-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      z-index: 5000;
+    }
+
+    .mermaid-overlay.hidden {
+      display: none;
+    }
+
+    .mermaid-modal {
+      background: #ffffff;
+      border-radius: 16px;
+      max-width: 96vw;
+      max-height: 92vh;
+      min-width: 70vw;
+      min-height: 70vh;
+      overflow: auto;
+      padding: 16px;
+      box-shadow: 0 30px 80px rgba(15, 23, 42, 0.35);
+    }
+
+    .mermaid-zoom {
+      display: inline-block;
+      transform-origin: 0 0;
+      color: #111827;
+      min-width: 800px;
+      min-height: 400px;
+    }
+
+    .mermaid-zoom svg {
+      width: 100%;
+      height: auto;
+      max-width: none;
+    }
+
+    @media (max-width: 900px) {
+      .mermaid-zoom {
+        min-width: 90vw;
+        min-height: 60vh;
+      }
+    }
+
+    .mermaid-fallback {
+      font-family: "Source Sans 3", sans-serif;
+      white-space: pre-wrap;
+      color: #111827;
+    }
+
+    .log .tag { color: #f59e0b; }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(14px);
+      animation: rise 600ms ease forwards;
+      animation-delay: var(--d, 0ms);
+    }
+
+    @keyframes rise {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; }
+      .cards { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr 1fr; }
+      .stats { grid-template-columns: 1fr; }
+      .event-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .reveal { animation: none; opacity: 1; transform: none; }
+      .btn { transition: none; }
+    }
+  </style>
+</head>
+<body class="grid" x-data="meetingApp()" x-init="init()">
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 7h16M4 12h10M4 17h7" stroke="#0f766e" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        Meeting System MVP
+        <span class="badge">shared context</span>
+      </div>
+      <a class="btn secondary" href="#start">View flow</a>
+    </header>
+
+    <section class="hero">
+      <div class="reveal" style="--d: 80ms;">
+        <h1>AI architecture reviews in a single focused session.</h1>
+        <p class="lead">Run multi-role meetings that converge to ADR, tasks, and risks. Keep every step auditable with an event stream.</p>
+        <div class="cta">
+          <a class="btn primary" href="#start">Run a meeting</a>
+          <a class="btn secondary" href="#logs">Replay events</a>
+        </div>
+      </div>
+      <div class="panel reveal" style="--d: 160ms;">
+        <strong>Current run</strong>
+        <p class="lead" style="margin: 8px 0 12px;">Round-robin roles, pause-ready, and schema-checked artifacts.</p>
+        <div class="stats">
+          <div class="stat">
+            <strong>3</strong>
+            Rounds
+          </div>
+          <div class="stat">
+            <strong>5</strong>
+            Roles
+          </div>
+          <div class="stat">
+            <strong>3</strong>
+            Artifacts
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="start">
+      <h2 class="reveal" style="--d: 80ms;">What it does</h2>
+      <div class="cards">
+        <div class="card reveal" style="--d: 120ms;">
+          <strong>Multi-role analysis</strong>
+          <p>Architect, infra, security, skeptic, and recorder collaborate on the same task.</p>
+        </div>
+        <div class="card reveal" style="--d: 180ms;">
+          <strong>Controlled convergence</strong>
+          <p>Hard limits and stop rules ensure the meeting ends with usable decisions.</p>
+        </div>
+        <div class="card reveal" style="--d: 240ms;">
+          <strong>Full replay</strong>
+          <p>Every message becomes an event for audit, debugging, and review.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="reveal" style="--d: 80ms;">Meeting flow</h2>
+      <div class="flow">
+        <div class="step reveal" style="--d: 120ms;">
+          <strong>Intake</strong>
+          <div>Capture topic, constraints, and roles.</div>
+        </div>
+        <div class="step reveal" style="--d: 160ms;">
+          <strong>Discussion</strong>
+          <div>Round-robin speaker turns with shared context.</div>
+        </div>
+        <div class="step reveal" style="--d: 200ms;">
+          <strong>Convergence</strong>
+          <div>Stop conditions checked each round.</div>
+        </div>
+        <div class="step reveal" style="--d: 240ms;">
+          <strong>Artifacts</strong>
+          <div>ADR, tasks, and risks are validated and saved.</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="logs">
+      <h2 class="reveal" style="--d: 80ms;">Event stream preview</h2>
+      <div class="event-shell reveal" style="--d: 140ms;">
+        <div class="cta" style="margin-bottom: 12px;">
+          <label class="btn secondary" style="gap: 8px;">
+            <input type="checkbox" x-model="showTokens" style="transform: scale(1.1);" />
+            Show streaming tokens
+          </label>
+          <label class="btn secondary" style="gap: 8px;">
+            <input type="checkbox" x-model="autoRefresh" @change="toggleAutoRefresh()" style="transform: scale(1.1);" />
+            Auto refresh
+          </label>
+          <button class="btn secondary" type="button" @click="loadEvents()">Refresh now</button>
+        </div>
+        <div class="event-grid">
+          <div class="event-list">
+            <template x-if="eventsLoading">
+              <div class="event-item">Loading events...</div>
+            </template>
+            <template x-if="!eventsLoading && eventsError">
+              <div class="event-item" x-text="eventsError"></div>
+            </template>
+            <template x-if="!eventsLoading && !eventsError && !eventLines().length">
+              <div class="event-item">No events yet.</div>
+            </template>
+            <template x-for="item in eventLines()" :key="item.id">
+              <button class="event-item"
+                      :class="{ active: selectedEvent && selectedEvent.id === item.id }"
+                      type="button"
+                      @click="selectEvent(item)">
+                <span x-text="item.label"></span>
+              </button>
+            </template>
+          </div>
+          <div class="event-detail">
+            <div class="log" x-html="selectedHtml()"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="summaries">
+      <h2 class="reveal" style="--d: 80ms;">轮次摘要</h2>
+      <div class="panel reveal" style="--d: 140ms;">
+        <div class="cta" style="margin-bottom: 12px;">
+          <button class="btn secondary" type="button" @click="loadSummaries()">刷新摘要</button>
+        </div>
+        <div class="log" x-text="summariesText()"></div>
+      </div>
+    </section>
+
+    <section class="section" id="memories">
+      <h2 class="reveal" style="--d: 80ms;">私有记忆</h2>
+      <div class="panel reveal" style="--d: 140ms;">
+        <div class="cta" style="margin-bottom: 12px;">
+          <select class="btn secondary" x-model="selectedMemoryRole" @change="loadMemoryDetail()">
+            <option value="">请选择角色</option>
+            <template x-for="m in memoryList" :key="m.role_name">
+              <option :value="m.role_name" x-text="m.role_name"></option>
+            </template>
+          </select>
+          <button class="btn secondary" type="button" @click="loadMemories()">刷新记忆</button>
+        </div>
+        <div class="log" x-text="selectedMemoryText()"></div>
+      </div>
+    </section>
+
+    <section class="section" id="run">
+      <h2 class="reveal" style="--d: 80ms;">开始运行</h2>
+      <div class="panel reveal" style="--d: 140ms;">
+        <div class="cta" style="margin-bottom: 12px;">
+          <select class="btn secondary" x-model="meetingChoice">
+            <option value="new">新建会议（默认配置）</option>
+            <option value="latest">使用最近会议</option>
+            <template x-for="m in meetings" :key="m.id">
+              <option :value="m.id" x-text="`${m.title || '未命名'} · ${m.id}`"></option>
+            </template>
+          </select>
+          <input x-model="topicInput" class="btn secondary" style="min-width: 260px;" placeholder="可选：本次会议主题">
+          <button class="btn primary" type="button" @click="startRun()" :disabled="startBusy">
+            <span x-text="startBusy ? '运行中…' : '开始运行'"></span>
+          </button>
+        </div>
+        <div class="log" x-text="startError || startStatus || '等待启动…'"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="reveal" style="--d: 80ms;">Meetings</h2>
+      <div class="panel reveal" style="--d: 140ms;">
+        <div class="cta" style="margin-bottom: 12px;">
+          <input x-model="meetingFilter" class="btn secondary" style="min-width: 220px;" placeholder="filter by title/id">
+          <button class="btn secondary" type="button" @click="loadMeetings()">Refresh</button>
+        </div>
+        <div class="log" x-text="filteredMeetingsText()"></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="reveal" style="--d: 80ms;">Runs</h2>
+      <div class="panel reveal" style="--d: 140ms;">
+        <div class="cta" style="margin-bottom: 12px;">
+          <input x-model="runFilter" class="btn secondary" style="min-width: 220px;" placeholder="filter by run/meeting id">
+          <button class="btn secondary" type="button" @click="loadRuns()">Refresh</button>
+        </div>
+        <div class="log" x-text="filteredRunsText()"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js" defer></script>
+  <script>
+    const fmt = (obj) => JSON.stringify(obj, null, 2);
+
+    function meetingApp() {
+      return {
+        meetings: [],
+        runs: [],
+        events: [],
+        eventsLoading: true,
+        eventsError: "",
+        showTokens: true,
+        autoRefresh: false,
+        _timer: null,
+        selectedEvent: null,
+        summaries: [],
+        summariesError: "",
+        memoryList: [],
+        memoryError: "",
+        memoryDetail: null,
+        selectedMemoryRole: "",
+        meetingFilter: "",
+        runFilter: "",
+        meetingChoice: "new",
+        topicInput: "",
+        startBusy: false,
+        startStatus: "",
+        startError: "",
+        mermaidScale: 1,
+        _mermaidOverlay: null,
+        _mermaidZoom: null,
+        _mermaidModal: null,
+        async init() {
+          if (window.mermaid) {
+            window.mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+          }
+          await Promise.all([this.loadMeetings(), this.loadRuns()]);
+          await this.loadEvents();
+          await this.loadSummaries();
+          await this.loadMemories();
+          this.toggleAutoRefresh();
+        },
+        toggleAutoRefresh() {
+          if (this._timer) {
+            clearInterval(this._timer);
+            this._timer = null;
+          }
+          if (this.autoRefresh) {
+            this._timer = setInterval(() => this.loadEvents(), 2000);
+          }
+        },
+        async loadMeetings() {
+          try {
+            const res = await fetch("/meetings");
+            if (!res.ok) throw new Error("meetings fetch failed");
+            const data = await res.json();
+            this.meetings = data.meetings ?? [];
+            if (this.meetings.length && (this.meetingChoice === "new" || this.meetingChoice === "latest")) {
+              this.meetingChoice = "latest";
+            }
+          } catch (err) {
+            this.meetings = [];
+          }
+        },
+        async loadRuns() {
+          try {
+            const res = await fetch("/runs");
+            if (!res.ok) throw new Error("runs fetch failed");
+            const data = await res.json();
+            this.runs = data.runs ?? [];
+          } catch (err) {
+            this.runs = [];
+          }
+        },
+        async loadEvents() {
+          this.eventsLoading = true;
+          this.eventsError = "";
+          try {
+            if (!this.runs.length) {
+              this.events = [];
+              this.eventsLoading = false;
+              return;
+            }
+            const latest = this.runs[0];
+            const resEvents = await fetch(`/meetings/${latest.meeting_id}/runs/${latest.id}/events`);
+            if (!resEvents.ok) throw new Error("events fetch failed");
+            const events = await resEvents.json();
+            this.events = events.events ?? [];
+            this.eventsLoading = false;
+            if (!this.selectedEvent && this.events.length) {
+              const lines = this.eventLines();
+              this.selectedEvent = lines.length ? lines[0] : null;
+              this.$nextTick(() => this.renderMermaid());
+            }
+          } catch (err) {
+            this.events = [];
+            this.eventsLoading = false;
+            this.eventsError = "Failed to load events.";
+          }
+        },
+        async loadSummaries() {
+          this.summariesError = "";
+          try {
+            if (!this.runs.length) {
+              this.summaries = [];
+              return;
+            }
+            const latest = this.runs[0];
+            const res = await fetch(`/meetings/${latest.meeting_id}/runs/${latest.id}/summaries`);
+            if (!res.ok) throw new Error("summaries fetch failed");
+            const data = await res.json();
+            this.summaries = data.summaries ?? [];
+          } catch (err) {
+            this.summaries = [];
+            this.summariesError = "Failed to load summaries.";
+          }
+        },
+        async loadMemories() {
+          this.memoryError = "";
+          try {
+            if (!this.runs.length) {
+              this.memoryList = [];
+              this.memoryDetail = null;
+              this.selectedMemoryRole = "";
+              return;
+            }
+            const latest = this.runs[0];
+            const res = await fetch(`/meetings/${latest.meeting_id}/runs/${latest.id}/memories`);
+            if (!res.ok) throw new Error("memories fetch failed");
+            const data = await res.json();
+            this.memoryList = data.memories ?? [];
+            if (!this.selectedMemoryRole && this.memoryList.length) {
+              this.selectedMemoryRole = this.memoryList[0].role_name;
+              this.memoryDetail = this.memoryList[0].content ?? null;
+            }
+          } catch (err) {
+            this.memoryList = [];
+            this.memoryDetail = null;
+            this.selectedMemoryRole = "";
+            this.memoryError = "Failed to load memories.";
+          }
+        },
+        async loadMemoryDetail() {
+          this.memoryError = "";
+          try {
+            if (!this.runs.length || !this.selectedMemoryRole) {
+              this.memoryDetail = null;
+              return;
+            }
+            const latest = this.runs[0];
+            const res = await fetch(
+              `/meetings/${latest.meeting_id}/runs/${latest.id}/memories?role=${encodeURIComponent(this.selectedMemoryRole)}`
+            );
+            if (!res.ok) throw new Error("memory fetch failed");
+            const data = await res.json();
+            this.memoryDetail = data.memory ?? null;
+          } catch (err) {
+            this.memoryDetail = null;
+            this.memoryError = "Failed to load memory.";
+          }
+        },
+        defaultMeetingPayload() {
+          const topic = this.topicInput.trim() || "评审多角色会议系统方案";
+          return {
+            title: "架构评审",
+            topic,
+            background: "快速演示",
+            constraints: {},
+            roles: [
+              "Chief Architect",
+              "Infra Architect",
+              "Security Architect",
+              "Skeptic",
+              "Recorder",
+            ],
+            max_rounds: 3,
+            context_mode: "shared",
+            termination: {
+              max_rounds: 3,
+              open_questions_max: 2,
+              disagreements_max: 1,
+            },
+          };
+        },
+        async ensureMeetingId() {
+          if (this.meetingChoice === "new") {
+            const payload = this.defaultMeetingPayload();
+            const res = await fetch("/meetings", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            if (!res.ok) throw new Error("create meeting failed");
+            const data = await res.json();
+            await this.loadMeetings();
+            return data.meeting_id;
+          }
+          if (this.meetingChoice === "latest") {
+            if (!this.meetings.length) {
+              this.meetingChoice = "new";
+              return this.ensureMeetingId();
+            }
+            return this.meetings[0].id;
+          }
+          return this.meetingChoice;
+        },
+        async startRun() {
+          this.startError = "";
+          this.startStatus = "";
+          this.startBusy = true;
+          try {
+            const meetingId = await this.ensureMeetingId();
+            const res = await fetch(`/meetings/${meetingId}/runs`, { method: "POST" });
+            if (!res.ok) throw new Error("start run failed");
+            const data = await res.json();
+            this.startStatus = `已启动 run：${data.run_id}（状态：${data.status}）`;
+            await this.loadRuns();
+            this.selectedEvent = null;
+            await this.loadEvents();
+            await this.loadSummaries();
+            await this.loadMemories();
+          } catch (err) {
+            this.startError = "启动失败，请检查后端是否运行。";
+          } finally {
+            this.startBusy = false;
+          }
+        },
+        selectEvent(item) {
+          this.selectedEvent = item;
+          this.$nextTick(() => this.renderMermaid());
+        },
+        selectedHtml() {
+          if (this.eventsLoading) return "Loading...";
+          if (!this.selectedEvent) return "Select an event to view details.";
+          const md = this.selectedEvent.markdown ?? "";
+          if (window.marked) {
+            return window.marked.parse(md);
+          }
+          return md;
+        },
+        ensureMermaidOverlay() {
+          if (this._mermaidOverlay) return;
+          const overlay = document.createElement("div");
+          overlay.className = "mermaid-overlay hidden";
+          const modal = document.createElement("div");
+          modal.className = "mermaid-modal";
+          const zoom = document.createElement("div");
+          zoom.className = "mermaid-zoom";
+          modal.appendChild(zoom);
+          overlay.appendChild(modal);
+
+          overlay.addEventListener("click", (event) => {
+            if (event.target === overlay) {
+              this.closeMermaidZoom();
+            }
+          });
+          overlay.addEventListener(
+            "wheel",
+            (event) => {
+              event.preventDefault();
+              const factor = event.deltaY > 0 ? 0.9 : 1.1;
+              this.mermaidScale = Math.min(6, Math.max(0.4, this.mermaidScale * factor));
+              this.applyMermaidZoom();
+            },
+            { passive: false }
+          );
+          document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape") this.closeMermaidZoom();
+          });
+
+          document.body.appendChild(overlay);
+          this._mermaidOverlay = overlay;
+          this._mermaidModal = modal;
+          this._mermaidZoom = zoom;
+        },
+        async openMermaidZoom(svg, graphText) {
+          this.ensureMermaidOverlay();
+          if (!this._mermaidOverlay || !this._mermaidZoom || !this._mermaidModal) return;
+          this.mermaidScale = 2.6;
+          this._mermaidZoom.innerHTML = "";
+          this._mermaidOverlay.classList.remove("hidden");
+          const fallback = document.createElement("pre");
+          fallback.className = "mermaid-fallback";
+          fallback.textContent = graphText ? graphText : "无可用的流程图内容。";
+          this._mermaidZoom.appendChild(fallback);
+
+          if (graphText && window.mermaid && window.mermaid.render) {
+            try {
+              const id = `zoom-${Date.now()}`;
+              const result = await window.mermaid.render(id, graphText);
+              const svgText = (result && result.svg) ? result.svg : "";
+              if (svgText.trim()) {
+                this._mermaidZoom.innerHTML = svgText;
+                this.applyMermaidZoom();
+              } else {
+                this.applyMermaidZoom();
+              }
+            } catch (err) {
+              this.applyMermaidZoom();
+            }
+          } else if (svg) {
+            const clone = svg.cloneNode(true);
+            this._mermaidZoom.innerHTML = "";
+            this._mermaidZoom.appendChild(clone);
+            this.applyMermaidZoom();
+          } else {
+            this.applyMermaidZoom();
+          }
+
+          this._mermaidModal.scrollTop = 0;
+          this._mermaidModal.scrollLeft = 0;
+        },
+        closeMermaidZoom() {
+          if (!this._mermaidOverlay) return;
+          this._mermaidOverlay.classList.add("hidden");
+        },
+        applyMermaidZoom() {
+          if (!this._mermaidZoom) return;
+          this._mermaidZoom.style.transform = `scale(${this.mermaidScale})`;
+        },
+        renderMermaid() {
+          if (!window.mermaid) return;
+          const container = document.querySelector(".event-detail");
+          if (!container) return;
+          const blocks = container.querySelectorAll("code.language-mermaid");
+          blocks.forEach((block) => {
+            const parent = block.parentElement;
+            if (!parent) return;
+            const graph = block.textContent ?? "";
+            const frame = document.createElement("div");
+            frame.className = "mermaid-frame";
+            const wrapper = document.createElement("div");
+            wrapper.className = "mermaid";
+            wrapper.textContent = graph;
+            frame.appendChild(wrapper);
+            frame.addEventListener("click", (event) => {
+              event.stopPropagation();
+              const svg = frame.querySelector("svg");
+              const graphText = frame.__graphText ?? "";
+              this.openMermaidZoom(svg, graphText);
+            });
+            frame.__graphText = graph;
+            parent.replaceWith(frame);
+          });
+          window.mermaid.init(undefined, container.querySelectorAll(".mermaid"));
+        },
+        eventLines() {
+          const items = this.events ?? [];
+          const lines = [];
+          const tokenBuffers = {};
+
+          for (let i = 0; i < items.length; i += 1) {
+            const e = items[i] ?? {};
+            const type = e.type ?? "event";
+            const payload = e.payload ?? {};
+
+            if (type === "token") {
+              if (!this.showTokens) continue;
+              const mid = payload.message_id ?? "unknown";
+              const key = `${mid}:${e.actor ?? "agent"}`;
+              tokenBuffers[key] = (tokenBuffers[key] ?? "") + String(payload.text ?? "");
+              continue;
+            }
+
+            if (type === "agent_message") {
+              if (this.showTokens) {
+                const mid = payload.message_id ?? "unknown";
+                const key = `${mid}:${e.actor ?? "agent"}`;
+                if (tokenBuffers[key]) {
+                  lines.push({
+                    id: `${i}-stream-${mid}`,
+                    label: `token_stream · ${e.actor ?? "agent"}`,
+                    markdown: tokenBuffers[key],
+                  });
+                  delete tokenBuffers[key];
+                }
+              }
+            }
+
+            const actor = e.actor ? ` actor=${e.actor}` : "";
+            let detail = "";
+            if (type === "round_started") detail = ` round=${payload.round ?? ""}`;
+            if (type === "speaker_selected") detail = ` speaker=${payload.speaker ?? ""}`;
+            if (type === "agent_message") {
+              const text = payload.message?.content ?? "";
+              detail = ` message=\"${String(text).slice(0, 60)}\"`;
+            }
+            if (type === "artifact_written") detail = ` artifact=${payload.artifact_type ?? ""}`;
+            if (type === "summary_written") detail = " summary";
+            if (type === "pause") detail = ` reason=${payload.pause_reason ?? ""}`;
+            if (type === "metric") {
+              const consensus = payload.consensus_score !== undefined
+                ? ` consensus=${payload.consensus_score}`
+                : "";
+              detail = ` open_q=${payload.open_questions_count ?? ""} disagree=${payload.disagreements_count ?? ""}${consensus}`;
+            }
+            if (!detail && Object.keys(payload).length) detail = " payload…";
+            let markdown = "";
+            if (type === "agent_message") {
+              markdown = payload.message?.content ?? "";
+            } else if (type === "summary_written") {
+              markdown = payload.content ?? "";
+            } else if (type === "artifact_written") {
+              const content = payload.content ?? {};
+              if (content.mermaid) {
+                markdown = `\`\`\`mermaid\n${content.mermaid}\n\`\`\``;
+              } else {
+                markdown = `\`\`\`json\n${fmt(content)}\n\`\`\``;
+              }
+            } else {
+              markdown = `\`\`\`json\n${fmt(e)}\n\`\`\``;
+            }
+            lines.push({
+              id: `${i}-${type}`,
+              label: `[${type}]${detail}${actor}`.trim(),
+              markdown,
+            });
+          }
+
+          if (this.showTokens) {
+            Object.keys(tokenBuffers).forEach((key) => {
+              lines.push({
+                id: `stream-tail-${key}`,
+                label: `token_stream · ${key.split(":")[1] ?? "agent"}`,
+                markdown: tokenBuffers[key],
+              });
+            });
+          }
+
+          return lines;
+        },
+        filteredMeetingsText() {
+          if (!this.meetings.length) return "No meetings yet.";
+          const q = this.meetingFilter.trim().toLowerCase();
+          const filtered = q
+            ? this.meetings.filter((m) =>
+                String(m.id).toLowerCase().includes(q) ||
+                String(m.title ?? "").toLowerCase().includes(q)
+              )
+            : this.meetings;
+          return fmt(filtered);
+        },
+        filteredRunsText() {
+          if (!this.runs.length) return "No runs yet.";
+          const q = this.runFilter.trim().toLowerCase();
+          const filtered = q
+            ? this.runs.filter((r) =>
+                String(r.id).toLowerCase().includes(q) ||
+                String(r.meeting_id ?? "").toLowerCase().includes(q)
+              )
+            : this.runs;
+          return fmt(filtered);
+        },
+        summariesText() {
+          if (this.summariesError) return this.summariesError;
+          if (!this.summaries.length) return "暂无摘要。";
+          return fmt(this.summaries);
+        },
+        selectedMemoryText() {
+          if (this.memoryError) return this.memoryError;
+          if (!this.selectedMemoryRole) return "请选择角色查看私有记忆。";
+          if (!this.memoryDetail) return "暂无私有记忆。";
+          return fmt(this.memoryDetail);
+        },
+      };
+    }
+  </script>
+</body>
+</html>

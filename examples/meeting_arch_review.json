@@ -1,0 +1,26 @@
+{
+  "title": "架构评审",
+  "topic": "评审一多agent会议系统的架构设计方案",
+  "background": "需要模拟真实会议 并行讨论架构设计方案的优缺点 最终达成一致意见",
+  "constraints": {
+    "budget": "中等",
+    "must_onprem": false
+  },
+  "roles": [
+    "Chief Architect",
+    "Infra Architect",
+    "Security Architect",
+    "Skeptic",
+    "Recorder"
+  ],
+  "max_rounds": 3,
+  "context_mode": "layered",
+  "termination": {
+    "max_rounds": 3,
+    "open_questions_max": 2,
+    "disagreements_max": 1
+  },
+  "output_schema": "v1",
+  "pause_on_round": null,
+  "parallel_mode": true
+}
