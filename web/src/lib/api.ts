@@ -71,5 +71,8 @@ export async function startRun(meetingId: string, overrides?: Record<string, unk
     init.headers = { "Content-Type": "application/json" }
     init.body = JSON.stringify({ overrides })
   }
-  return request<{ run_id: string; status: string }>(`/meetings/${meetingId}/runs`, init)
+  return request<{ meeting_id: string; run_id: string; status: string }>(
+    `/meetings/${meetingId}/runs`,
+    init
+  )
 }

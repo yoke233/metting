@@ -365,6 +365,12 @@ export function StageView({ meeting, run }: StageViewProps) {
     return roles.length ? roles : []
   }, [meeting])
 
+  const parallelMode = React.useMemo(() => {
+    if (!run) return false
+    const config = tryParseJson<Record<string, unknown>>(run.config_json) ?? {}
+    return Boolean(config.parallel_mode)
+  }, [run])
+
   const [state, dispatch] = React.useReducer(stageReducer, {
     roles: {},
     order: baseRoles,
@@ -413,6 +419,7 @@ export function StageView({ meeting, run }: StageViewProps) {
     const maybeAutoFollow = (role: string, messageId: string, ts: number) => {
       // Auto-focus the role that starts speaking to match stage behavior.
       if (!role || role.toLowerCase() === "user") return
+      if (parallelMode && selectedRoleRef.current) return
       if (selectedRoleRef.current === role) return
       const nowMs = ts || Date.now()
       if (nowMs - autoFollowRef.current.ts < 800) return
@@ -498,7 +505,7 @@ export function StageView({ meeting, run }: StageViewProps) {
       source.close()
       setConnection("idle")
     }
-  }, [run, baseRoles])
+  }, [parallelMode, run, baseRoles])
 
   const roles = state.order.length ? state.order : Object.keys(state.roles)
   const selected = selectedRole ? state.roles[selectedRole] : undefined

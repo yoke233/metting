@@ -146,7 +146,7 @@ def create_app(db_path: Path | str = "meeting.db") -> FastAPI:
 
     @app.post("/meetings/{meeting_id}/runs")
     async def start_run(meeting_id: str, payload: RunStartRequest | None = None):
-        # Start a new run and execute immediately.
+        # Start a new run and execute in background.
         meeting = app.state.storage.get_meeting(meeting_id)
         if not meeting:
             raise HTTPException(status_code=404, detail="meeting not found")
@@ -155,16 +155,23 @@ def create_app(db_path: Path | str = "meeting.db") -> FastAPI:
         run_config = _merge_config(config, overrides) if overrides else config
         run_id = app.state.storage.create_run(meeting_id, run_config)
         user_task = _build_user_task(run_config)
-        result = await run_meeting(
-            storage=app.state.storage,
-            runner=app.state.runner,
-            meeting_id=meeting_id,
-            run_id=run_id,
-            config=run_config,
-            user_task=user_task,
-            start_round=1,
-        )
-        return {"run_id": run_id, "status": result.get("status"), "artifacts": result.get("artifacts")}
+
+        async def _run():
+            try:
+                await run_meeting(
+                    storage=app.state.storage,
+                    runner=app.state.runner,
+                    meeting_id=meeting_id,
+                    run_id=run_id,
+                    config=run_config,
+                    user_task=user_task,
+                    start_round=1,
+                )
+            except Exception:
+                app.state.storage.set_run_status(run_id, "FAILED")
+
+        asyncio.create_task(_run())
+        return {"meeting_id": meeting_id, "run_id": run_id, "status": "RUNNING"}
 
     @app.post("/meetings/{meeting_id}/runs/{run_id}/messages")
     def add_message(meeting_id: str, run_id: str, payload: UserMessage):
