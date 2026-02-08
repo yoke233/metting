@@ -19,6 +19,13 @@ uv venv
 uv pip install -e .
 ```
 
+### 1.5) Frontend dependencies (web UI)
+
+```powershell
+cd .\web
+pnpm install
+```
+
 ### 2) Run a meeting via CLI
 
 ```powershell
@@ -31,7 +38,16 @@ uv run python .\meeting\cli\run_meeting.py run --config .\examples\meeting_arch_
 uv run python -m uvicorn meeting.api.server:create_app --factory --reload
 ```
 
-### 4) Sample REST flow
+### 4) Start the frontend (Vite)
+
+```powershell
+cd .\web
+pnpm dev
+```
+
+The UI runs at `http://127.0.0.1:5173` and proxies API calls to `http://127.0.0.1:8000`.
+
+### 5) Sample REST flow
 
 ```powershell
 # create meeting
@@ -59,4 +75,4 @@ SQLite file defaults to `meeting.db` in the current directory.
 - Recorder output prompt is loaded from `config/settings.toml` (`recorder_output_prompt`).
 - Completed runs save a `FLOWCHART` artifact (Mermaid) for the meeting flow.
 - You can override in `config/.secrets.toml` (ignored by git).
-- Layered context is not implemented in MVP.
+- Frontend: supports Console view + Stage view (SSE streaming).
