@@ -55,6 +55,9 @@ function App() {
   const [summaries, setSummaries] = React.useState<ArtifactSummary[]>([])
   const [memories, setMemories] = React.useState<MemorySnapshot[]>([])
   const [selectedRole, setSelectedRole] = React.useState<string | null>(null)
+  const [runMode, setRunMode] = React.useState<"sequential" | "parallel">("sequential")
+  const [parallelLimit, setParallelLimit] = React.useState(0)
+  const [parallelRoles, setParallelRoles] = React.useState<string[]>([])
   const [draftConfig, setDraftConfig] = React.useState(DEFAULT_MEETING_CONFIG)
   const [createError, setCreateError] = React.useState<string | null>(null)
   const [showTokens, setShowTokens] = React.useState(true)
@@ -68,6 +71,30 @@ function App() {
     () => meetings.find((meeting) => meeting.id === selectedMeetingId) ?? null,
     [meetings, selectedMeetingId]
   )
+
+  const selectedMeetingConfig = React.useMemo(() => {
+    // Parse meeting config for run overrides.
+    if (!selectedMeeting) return null
+    return tryParseJson<Record<string, unknown>>(selectedMeeting.config_json)
+  }, [selectedMeeting])
+
+  const meetingRoles = React.useMemo(() => {
+    const roles = selectedMeetingConfig?.roles
+    if (Array.isArray(roles)) {
+      return roles.map(String)
+    }
+    return []
+  }, [selectedMeetingConfig])
+
+  const selectableRoles = React.useMemo(() => {
+    return meetingRoles.filter((role) => role.toLowerCase() !== "recorder")
+  }, [meetingRoles])
+
+  const handleSwitchView = React.useCallback((next: "console" | "stage") => {
+    // handleSwitchView: sync SPA view with hash navigation.
+    window.location.hash = next === "stage" ? "#/stage" : "#/"
+    setView(next)
+  }, [])
 
   const runsForMeeting = React.useMemo(() => {
     return selectedMeetingId ? runs.filter((run) => run.meeting_id === selectedMeetingId) : runs
@@ -157,7 +184,18 @@ function App() {
     setIsStarting(true)
     setError(null)
     try {
-      const result = await startRun(selectedMeeting.id)
+      const overrides: Record<string, unknown> = {
+        parallel_mode: runMode === "parallel",
+      }
+      if (runMode === "parallel") {
+        if (parallelRoles.length) {
+          overrides.parallel_roles = parallelRoles
+        }
+        if (parallelLimit > 0) {
+          overrides.parallel_role_limit = parallelLimit
+        }
+      }
+      const result = await startRun(selectedMeeting.id, overrides)
       setStatusNote("已启动会议运行")
       await refreshRuns()
       setSelectedRunId(result.run_id)
@@ -167,17 +205,11 @@ function App() {
     } finally {
       setIsStarting(false)
     }
-  }, [refreshRuns, selectedMeeting])
+  }, [handleSwitchView, parallelLimit, parallelRoles, refreshRuns, runMode, selectedMeeting])
 
   const handleSelectMeeting = React.useCallback((meetingId: string) => {
     // handleSelectMeeting: switch active meeting and reset run focus.
     setSelectedMeetingId(meetingId)
-  }, [])
-
-  const handleSwitchView = React.useCallback((next: "console" | "stage") => {
-    // handleSwitchView: sync SPA view with hash navigation.
-    window.location.hash = next === "stage" ? "#/stage" : "#/"
-    setView(next)
   }, [])
 
   const handleDraftChange = React.useCallback((value: string) => {
@@ -231,6 +263,31 @@ function App() {
       setSelectedRunId(runsForMeeting[0].id)
     }
   }, [runsForMeeting, selectedRunId])
+
+  React.useEffect(() => {
+    // Sync run mode defaults when switching meetings.
+    if (!selectedMeetingConfig) {
+      setRunMode("sequential")
+      setParallelLimit(0)
+      setParallelRoles([])
+      return
+    }
+    const mode = selectedMeetingConfig.parallel_mode ? "parallel" : "sequential"
+    setRunMode(mode)
+    const limit =
+      typeof selectedMeetingConfig.parallel_role_limit === "number"
+        ? selectedMeetingConfig.parallel_role_limit
+        : 0
+    setParallelLimit(Number.isFinite(limit) ? limit : 0)
+    const configRoles = selectedMeetingConfig.parallel_roles
+    if (Array.isArray(configRoles) && configRoles.length) {
+      setParallelRoles(configRoles.map(String))
+    } else {
+      setParallelRoles(
+        meetingRoles.filter((role) => role.toLowerCase() !== "recorder")
+      )
+    }
+  }, [meetingRoles, selectedMeetingId, selectedMeetingConfig])
 
   React.useEffect(() => {
     if (!selectedRun) {
@@ -341,12 +398,19 @@ function App() {
                   setCreateError(null)
                 }}
               />
-              <RunControlPanel
-                meeting={selectedMeeting}
-                run={selectedRun}
-                isStarting={isStarting}
-                onStart={handleStartRun}
-              />
+            <RunControlPanel
+              meeting={selectedMeeting}
+              run={selectedRun}
+              isStarting={isStarting}
+              onStart={handleStartRun}
+              runMode={runMode}
+              onRunModeChange={setRunMode}
+              parallelLimit={parallelLimit}
+              onParallelLimitChange={setParallelLimit}
+              availableRoles={selectableRoles}
+              parallelRoles={parallelRoles}
+              onParallelRolesChange={setParallelRoles}
+            />
               <RunsPanel
                 runs={runsForMeeting}
                 selectedId={selectedRunId}

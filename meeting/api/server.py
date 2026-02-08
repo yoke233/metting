@@ -50,6 +50,10 @@ class ResumeRequest(BaseModel):
     answers: Dict[str, Any] = Field(default_factory=dict)
 
 
+class RunStartRequest(BaseModel):
+    overrides: Dict[str, Any] = Field(default_factory=dict)
+
+
 def _build_user_task(config: Dict[str, Any]) -> str:
     # Merge topic/background/constraints into a single prompt string.
     topic = config.get("topic", "")
@@ -86,6 +90,17 @@ def _format_sse(event: Dict[str, Any]) -> str:
     # Format SSE payload for event streaming.
     data = json.dumps(event, ensure_ascii=False)
     return f"id: {event.get('id', 0)}\ndata: {data}\n\n"
+
+
+def _merge_config(base: Dict[str, Any], overrides: Dict[str, Any]) -> Dict[str, Any]:
+    # Merge overrides into the base config (deep merge for nested dicts).
+    merged = dict(base)
+    for key, value in overrides.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge_config(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
 
 
 # create_app: FastAPI factory for the meeting service.
@@ -130,20 +145,22 @@ def create_app(db_path: Path | str = "meeting.db") -> FastAPI:
         return {"runs": runs}
 
     @app.post("/meetings/{meeting_id}/runs")
-    async def start_run(meeting_id: str):
+    async def start_run(meeting_id: str, payload: RunStartRequest | None = None):
         # Start a new run and execute immediately.
         meeting = app.state.storage.get_meeting(meeting_id)
         if not meeting:
             raise HTTPException(status_code=404, detail="meeting not found")
         config = json.loads(meeting["config_json"])
-        run_id = app.state.storage.create_run(meeting_id, config)
-        user_task = _build_user_task(config)
+        overrides = payload.overrides if payload else {}
+        run_config = _merge_config(config, overrides) if overrides else config
+        run_id = app.state.storage.create_run(meeting_id, run_config)
+        user_task = _build_user_task(run_config)
         result = await run_meeting(
             storage=app.state.storage,
             runner=app.state.runner,
             meeting_id=meeting_id,
             run_id=run_id,
-            config=config,
+            config=run_config,
             user_task=user_task,
             start_round=1,
         )

@@ -1,4 +1,4 @@
-import type { EventRecord, Meeting, MemorySnapshot, Run } from "@/lib/types"
+import type { ArtifactSummary, EventRecord, Meeting, MemorySnapshot, Run } from "@/lib/types"
 
 export const API_BASE = import.meta.env.VITE_API_BASE ?? ""
 
@@ -36,8 +36,8 @@ export async function listEvents(
   return data.events ?? []
 }
 
-export async function listSummaries(run: Run) {
-  const data = await request<{ summaries: { content: Record<string, unknown> }[] }>(
+export async function listSummaries(run: Run): Promise<ArtifactSummary[]> {
+  const data = await request<{ summaries: ArtifactSummary[] }>(
     `/meetings/${run.meeting_id}/runs/${run.id}/summaries`
   )
   return data.summaries ?? []
@@ -65,9 +65,11 @@ export async function createMeeting(payload: Record<string, unknown>) {
   })
 }
 
-export async function startRun(meetingId: string) {
-  return request<{ run_id: string; status: string }>(
-    `/meetings/${meetingId}/runs`,
-    { method: "POST" }
-  )
+export async function startRun(meetingId: string, overrides?: Record<string, unknown>) {
+  const init: RequestInit = { method: "POST" }
+  if (overrides && Object.keys(overrides).length > 0) {
+    init.headers = { "Content-Type": "application/json" }
+    init.body = JSON.stringify({ overrides })
+  }
+  return request<{ run_id: string; status: string }>(`/meetings/${meetingId}/runs`, init)
 }

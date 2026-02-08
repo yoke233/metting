@@ -1,5 +1,6 @@
 import * as React from "react"
 
+import { MarkdownBlock } from "@/components/MarkdownBlock"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { API_BASE, listEvents } from "@/lib/api"
@@ -145,8 +146,11 @@ function resolveRole(event: StreamEvent): string {
     return payloadRole
   }
   const message = payload.message
-  if (message && typeof message.name === "string" && message.name.trim()) {
-    return message.name
+  if (message && typeof message === "object") {
+    const name = (message as { name?: unknown }).name
+    if (typeof name === "string" && name.trim()) {
+      return name
+    }
   }
   const actor = event.actor ?? ""
   if (actor.includes(":")) {
@@ -165,8 +169,11 @@ function getMessageId(event: StreamEvent): string {
 function getMessageContent(event: StreamEvent): string {
   const payload = event.payload ?? {}
   const message = payload.message
-  if (message && typeof message.content === "string") {
-    return message.content
+  if (message && typeof message === "object") {
+    const content = (message as { content?: unknown }).content
+    if (typeof content === "string") {
+      return content
+    }
   }
   return ""
 }
@@ -191,6 +198,162 @@ function statusLabel(status: string) {
   if (status === "speaking") return "正在发言"
   if (status === "recent") return "刚刚发言"
   return "待机"
+}
+
+function extractJsonObject(text: string): Record<string, unknown> | null {
+  if (!text) return null
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  const jsonText = fenced ? fenced[1] : extractJsonByBrace(text)
+  if (!jsonText) return null
+  try {
+    const payload = JSON.parse(jsonText)
+    if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+      return payload as Record<string, unknown>
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+function extractJsonByBrace(text: string): string | null {
+  const start = text.indexOf("{")
+  if (start === -1) return null
+  let depth = 0
+  let inString = false
+  let escape = false
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i]
+    if (inString) {
+      if (escape) {
+        escape = false
+      } else if (ch === "\\") {
+        escape = true
+      } else if (ch === '"') {
+        inString = false
+      }
+      continue
+    }
+    if (ch === '"') {
+      inString = true
+      continue
+    }
+    if (ch === "{") depth += 1
+    if (ch === "}") {
+      depth -= 1
+      if (depth === 0) {
+        return text.slice(start, i + 1)
+      }
+    }
+  }
+  return null
+}
+
+function getCaseInsensitive(obj: Record<string, unknown>, key: string) {
+  if (key in obj) return obj[key]
+  const lower = key.toLowerCase()
+  for (const [k, value] of Object.entries(obj)) {
+    if (k.toLowerCase() === lower) return value
+  }
+  return undefined
+}
+
+function stringifyItem(value: unknown) {
+  if (value === null || value === undefined) return ""
+  if (typeof value === "string") return value
+  if (typeof value === "number" || typeof value === "boolean") return String(value)
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function buildRecorderMarkdown(payload: Record<string, unknown>) {
+  const adr = getCaseInsensitive(payload, "ADR") as Record<string, unknown> | undefined
+  const tasksRaw = getCaseInsensitive(payload, "TASKS")
+  const risks = getCaseInsensitive(payload, "RISKS") as Record<string, unknown> | undefined
+
+  if (!adr && !tasksRaw && !risks) return ""
+
+  const lines: string[] = []
+  if (adr) {
+    lines.push("## ADR")
+    lines.push(`**背景**：${stringifyItem(adr.context)}`)
+    lines.push(`**决策**：${stringifyItem(adr.decision)}`)
+    const alternatives = Array.isArray(adr.alternatives_considered) ? adr.alternatives_considered : []
+    if (alternatives.length) {
+      lines.push("")
+      lines.push("**备选方案**")
+      alternatives.forEach((item) => lines.push(`- ${stringifyItem(item)}`))
+    }
+    const consequences = Array.isArray(adr.consequences) ? adr.consequences : []
+    if (consequences.length) {
+      lines.push("")
+      lines.push("**影响/后果**")
+      consequences.forEach((item) => lines.push(`- ${stringifyItem(item)}`))
+    }
+    if (adr.risks_summary) {
+      lines.push("")
+      lines.push(`**风险摘要**：${stringifyItem(adr.risks_summary)}`)
+    }
+    const openQuestions = Array.isArray(adr.open_questions) ? adr.open_questions : []
+    if (openQuestions.length) {
+      lines.push("")
+      lines.push("**开放问题**")
+      openQuestions.forEach((item) => lines.push(`- ${stringifyItem(item)}`))
+    }
+    const nextSteps = Array.isArray(adr.next_steps) ? adr.next_steps : []
+    if (nextSteps.length) {
+      lines.push("")
+      lines.push("**下一步**")
+      nextSteps.forEach((item) => lines.push(`- ${stringifyItem(item)}`))
+    }
+  }
+
+  const tasksList = (() => {
+    if (Array.isArray(tasksRaw)) return tasksRaw
+    if (tasksRaw && typeof tasksRaw === "object") {
+      const inner = getCaseInsensitive(tasksRaw as Record<string, unknown>, "tasks")
+      return Array.isArray(inner) ? inner : []
+    }
+    return []
+  })()
+
+  if (tasksList.length) {
+    lines.push("")
+    lines.push("## TASKS")
+    tasksList.forEach((task, index) => {
+      if (!task || typeof task !== "object") return
+      const item = task as Record<string, unknown>
+      const title = stringifyItem(item.title)
+      const taskId = stringifyItem(item.task_id)
+      lines.push(`### ${taskId ? `${taskId} ` : ""}${title || `任务 ${index + 1}`}`)
+      lines.push(`- 负责人：${stringifyItem(item.owner_role)}`)
+      lines.push(`- 优先级：${stringifyItem(item.priority)}`)
+      lines.push(`- 预估：${stringifyItem(item.estimate)}`)
+      const deps = Array.isArray(item.dependencies) ? item.dependencies : []
+      lines.push(`- 依赖：${deps.length ? deps.map(stringifyItem).join(", ") : "无"}`)
+    })
+  }
+
+  if (risks && Array.isArray(risks.risks)) {
+    lines.push("")
+    lines.push("## RISKS")
+    risks.risks.forEach((riskItem, index) => {
+      if (!riskItem || typeof riskItem !== "object") return
+      const item = riskItem as Record<string, unknown>
+      lines.push(`### 风险 ${index + 1}`)
+      lines.push(`- 风险：${stringifyItem(item.risk)}`)
+      lines.push(`- 影响：${stringifyItem(item.impact)}`)
+      lines.push(`- 概率：${stringifyItem(item.probability)}`)
+      lines.push(`- 缓解：${stringifyItem(item.mitigation)}`)
+      lines.push(`- 验证：${stringifyItem(item.verification)}`)
+      lines.push(`- 负责人：${stringifyItem(item.owner_role)}`)
+    })
+  }
+
+  return lines.join("\n")
 }
 
 export function StageView({ meeting, run }: StageViewProps) {
@@ -339,6 +502,21 @@ export function StageView({ meeting, run }: StageViewProps) {
 
   const roles = state.order.length ? state.order : Object.keys(state.roles)
   const selected = selectedRole ? state.roles[selectedRole] : undefined
+  const recorderMarkdown = React.useMemo(() => {
+    const recorderRole = Object.keys(state.roles).find(
+      (role) => role.toLowerCase() === "recorder" || role === "书记员"
+    )
+    if (!recorderRole) return ""
+    const recorder = state.roles[recorderRole]
+    if (!recorder?.messages.length) return ""
+    for (let i = recorder.messages.length - 1; i >= 0; i -= 1) {
+      const payload = extractJsonObject(recorder.messages[i].content)
+      if (payload) {
+        return buildRecorderMarkdown(payload)
+      }
+    }
+    return ""
+  }, [state.roles])
 
   return (
     <section className="space-y-6">
@@ -373,58 +551,75 @@ export function StageView({ meeting, run }: StageViewProps) {
       )}
 
       {run && (
-        <div className="grid gap-6 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <aside className="space-y-3">
-            {roles.map((role) => {
-              const stateRole = state.roles[role]
-              const status = stateRole ? roleStatus(stateRole, now) : "idle"
-              const isActive = role === selectedRole
-              return (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => setSelectedRole(role)}
-                  className={cn(
-                    "w-full rounded-2xl border p-4 text-left transition",
-                    isActive
-                      ? "border-primary bg-primary/10 text-primary shadow-md"
-                      : "border-border/70 bg-card/80 text-foreground"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        "relative flex h-12 w-12 items-center justify-center rounded-full text-lg font-semibold",
-                        status === "speaking" && "bg-primary/20 text-primary ring-2 ring-primary",
-                        status === "recent" && "bg-accent/20 text-accent-foreground",
-                        status === "idle" && "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      <span>{ROLE_LABELS[role]?.slice(0, 1) ?? role.slice(0, 1)}</span>
-                      {status === "speaking" && (
-                        <span className="absolute -bottom-1 -right-1 h-3 w-3 rounded-full bg-primary shadow-[0_0_12px_rgba(16,185,129,0.6)]" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="text-sm font-semibold">
-                        {ROLE_LABELS[role] ?? role}
+        <div className="space-y-6">
+          <div className="rounded-2xl border bg-card/80 p-4 shadow-lg">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-base font-semibold">角色席位</div>
+              <Badge variant="secondary">点击角色查看发言记录</Badge>
+            </div>
+            <div className="mt-4 flex gap-3 overflow-x-auto pb-2">
+              {roles.map((role) => {
+                const stateRole = state.roles[role]
+                const status = stateRole ? roleStatus(stateRole, now) : "idle"
+                const isActive = role === selectedRole
+                return (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setSelectedRole(role)}
+                    className={cn(
+                      "min-w-[150px] rounded-2xl border px-4 py-3 text-left transition",
+                      isActive
+                        ? "border-primary bg-primary/10 text-primary shadow-md"
+                        : "border-border/70 bg-card/80 text-foreground"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={cn(
+                          "relative flex h-16 w-14 flex-col items-center justify-start",
+                          status === "speaking" && "motion-safe:animate-pulse"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "mt-1 h-6 w-6 rounded-full",
+                            status === "speaking" && "bg-primary/30 ring-2 ring-primary",
+                            status === "recent" && "bg-accent/30",
+                            status === "idle" && "bg-muted"
+                          )}
+                        />
+                        <div
+                          className={cn(
+                            "mt-1 h-8 w-10 rounded-[999px]",
+                            status === "speaking" && "bg-primary/20",
+                            status === "recent" && "bg-accent/20",
+                            status === "idle" && "bg-muted/80"
+                          )}
+                        />
+                        {status === "speaking" && (
+                          <span className="absolute -right-1 top-0 h-3 w-3 rounded-full bg-primary shadow-[0_0_12px_rgba(16,185,129,0.6)]" />
+                        )}
                       </div>
-                      <div className="text-xs text-muted-foreground">{statusLabel(status)}</div>
+                      <div>
+                        <div className="text-sm font-semibold">
+                          {ROLE_LABELS[role] ?? role}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{statusLabel(status)}</div>
+                      </div>
                     </div>
-                  </div>
-                  {stateRole?.messages.length ? (
-                    <div className="mt-3 text-xs text-muted-foreground">
-                      最近：{clampText(stateRole.messages.at(-1)?.content ?? "", 48)}
+                    <div className="mt-2 text-[11px] text-muted-foreground">
+                      {stateRole?.messages.length
+                        ? `最近：${clampText(stateRole.messages.at(-1)?.content ?? "", 40)}`
+                        : "暂无发言"}
                     </div>
-                  ) : (
-                    <div className="mt-3 text-xs text-muted-foreground">暂无发言</div>
-                  )}
-                </button>
-              )
-            })}
-          </aside>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
 
-          <section className="space-y-5">
+          <div className="grid gap-6 lg:grid-cols-2">
             <div className="rounded-2xl border bg-card/80 p-4 shadow-lg">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-base font-semibold">正在发言</div>
@@ -432,7 +627,7 @@ export function StageView({ meeting, run }: StageViewProps) {
                   {selected ? ROLE_LABELS[selected.role] ?? selected.role : "未选择角色"}
                 </Badge>
               </div>
-              <div className="mt-3 min-h-[140px] whitespace-pre-wrap text-sm text-muted-foreground">
+              <div className="mt-3 min-h-[180px] whitespace-pre-wrap text-sm text-muted-foreground">
                 {selected?.streamText
                   ? selected.streamText
                   : "暂无流式输出，等待下一条发言。"}
@@ -467,7 +662,19 @@ export function StageView({ meeting, run }: StageViewProps) {
                 </div>
               </ScrollArea>
             </div>
-          </section>
+          </div>
+
+          {recorderMarkdown && (
+            <div className="rounded-2xl border bg-card/80 p-5 shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-base font-semibold">书记员工件（Markdown）</div>
+                <Badge variant="outline">自动生成</Badge>
+              </div>
+              <div className="mt-4">
+                <MarkdownBlock text={recorderMarkdown} />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>

@@ -62,7 +62,11 @@ function buildEventLines(events: EventRecord[], showTokens: boolean): EventLine[
     if (event.type === "round_started") detail = ` round=${payload.round ?? ""}`
     if (event.type === "speaker_selected") detail = ` speakers=${payload.speakers ?? payload.speaker ?? ""}`
     if (event.type === "agent_message") {
-      const text = payload.message?.content ?? ""
+      const message = payload.message
+      const text =
+        message && typeof message === "object" && typeof (message as { content?: unknown }).content === "string"
+          ? String((message as { content?: unknown }).content)
+          : ""
       detail = ` message="${String(text).slice(0, 42)}"`
     }
     if (event.type === "artifact_written") detail = ` artifact=${payload.artifact_type ?? ""}`
@@ -76,15 +80,22 @@ function buildEventLines(events: EventRecord[], showTokens: boolean): EventLine[
     let content = ""
     if (event.type === "agent_message") {
       kind = "markdown"
-      content = payload.message?.content ?? ""
+      const message = payload.message
+      content =
+        message && typeof message === "object" && typeof (message as { content?: unknown }).content === "string"
+          ? String((message as { content?: unknown }).content)
+          : ""
     } else if (event.type === "summary_written") {
       kind = "markdown"
       content = payload.content ? fmt(payload.content) : ""
     } else if (event.type === "artifact_written") {
-      const artifact = payload.content ?? {}
-      if (artifact.mermaid) {
+      const artifact =
+        payload.content && typeof payload.content === "object"
+          ? (payload.content as Record<string, unknown>)
+          : {}
+      if (typeof artifact.mermaid === "string") {
         kind = "mermaid"
-        content = String(artifact.mermaid)
+        content = artifact.mermaid
       } else {
         kind = "json"
         content = fmt(artifact)
